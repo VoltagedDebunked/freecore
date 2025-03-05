@@ -26,6 +26,7 @@
 #include "kernel/io.h"
 #include "kernel/config.h"
 #include "kernel/drivers/driversys.h"
+#include "arch/x86/include/asm/keyboard.h"
 
 #ifdef __x86_64__
 #include "arch/x86/include/asm/serial.h"
@@ -97,6 +98,10 @@ void kmain(void) {
     /* Initialize Device Driver System, fuck this shit man. Atleast we wont have separate drivers. */
     kprintf("Initializing Device Drivers... ");
     drivers_early_init();
+    kprintf("done\n");
+
+    kprintf("Initializing Keyboard... ");
+    ps2_keyboard_init();
     kprintf("done\n");
 
     /* Ensure we got a framebuffer */
