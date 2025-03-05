@@ -20,6 +20,7 @@
 #define _ASM_X86_KEYBOARD_H
 
 #include <stdint.h>
+#include <drivers/driversys.h>
 #include <stdbool.h>
 
 /* PS/2 Controller Ports */
@@ -151,5 +152,6 @@ char ps2_scancode_to_ascii(uint8_t scancode, bool release);
 
 /* Register the keyboard handler with the IDT */
 void ps2_keyboard_register_handler(void);
+void ps2_keyboard_register_driver(void);
 
 #endif /* _ASM_X86_KEYBOARD_H */

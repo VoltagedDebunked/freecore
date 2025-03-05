@@ -66,12 +66,12 @@ static void hcf(void) {
 void kmain(void) {
     /* Initialize I/O (includes serial) */
     io_init();
-    
+
     /* Print welcome message */
     kprintf("\n");
     kprintf("FreeCore Kernel - Starting up...\n");
     kprintf("--------------------------------\n");
-    
+
     /* Ensure the bootloader actually understands our base revision (see spec) */
     if (LIMINE_BASE_REVISION_SUPPORTED == false) {
         kerr("Incompatible Limine bootloader detected!\n");
@@ -80,7 +80,7 @@ void kmain(void) {
 
     /* Print bootloader info if available */
     if (bootloader_info_request.response != NULL) {
-        kprintf("Bootloader: %s %s\n", 
+        kprintf("Bootloader: %s %s\n",
                 bootloader_info_request.response->name,
                 bootloader_info_request.response->version);
     }
@@ -101,7 +101,7 @@ void kmain(void) {
     kprintf("done\n");
 
     kprintf("Initializing Keyboard... ");
-    ps2_keyboard_init();
+    ps2_keyboard_register_driver();
     kprintf("done\n");
 
     /* Ensure we got a framebuffer */
@@ -116,8 +116,8 @@ void kmain(void) {
 
     /* Fetch the first framebuffer */
     struct limine_framebuffer *framebuffer = framebuffer_request.response->framebuffers[0];
-    kprintf("Framebuffer: %ux%u, %u BPP\n", 
-            (unsigned)framebuffer->width, 
+    kprintf("Framebuffer: %ux%u, %u BPP\n",
+            (unsigned)framebuffer->width,
             (unsigned)framebuffer->height,
             (unsigned)framebuffer->bpp);
 
@@ -125,27 +125,27 @@ void kmain(void) {
     kprintf("Clearing screen... ");
     memset((void *)framebuffer->address, 0, framebuffer->pitch * framebuffer->height);
     kprintf("done\n");
-    
+
     /* Initialization complete */
     kprintf("\nFreeCore v%s initialization complete!\n", KERNEL_VERSION_STRING);
-    kprintf("Serial communication is working on COM port %d.\n", 
+    kprintf("Serial communication is working on COM port %d.\n",
             DEBUG_SERIAL_PORT == COM1_PORT ? 1 :
             DEBUG_SERIAL_PORT == COM2_PORT ? 2 :
             DEBUG_SERIAL_PORT == COM3_PORT ? 3 :
             DEBUG_SERIAL_PORT == COM4_PORT ? 4 : 0);
     kprintf("Press any key to receive echo: ");
-    
+
     /* Echo received characters (simple terminal) */
     while (1) {
         char c = serial_read_char(DEBUG_SERIAL_PORT);
         serial_write_char(DEBUG_SERIAL_PORT, c);
-        
+
         /* Add line feed after carriage return */
         if (c == '\r') {
             serial_write_char(DEBUG_SERIAL_PORT, '\n');
         }
     }
-    
+
     /* We should never get here */
     hcf();
 }
