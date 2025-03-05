@@ -24,7 +24,7 @@
 #include "config.h"
 
 #ifdef __x86_64__
-#include "../arch/x86/include/asm/serial.h"
+#include <arch/x86/include/serial.h>
 #endif
 
 /* Flag indicating if I/O subsystem is initialized */

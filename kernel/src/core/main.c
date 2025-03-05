@@ -20,16 +20,16 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <limine.h>
-#include "minstd.h"
-#include "arch/x86/include/asm/gdt.h"
-#include "arch/x86/include/asm/idt.h"
-#include "kernel/io.h"
-#include "kernel/config.h"
-#include "kernel/drivers/driversys.h"
-#include "arch/x86/include/asm/keyboard.h"
+#include <lib/minstd.h>
+#include <arch/x86/include/gdt.h>
+#include <arch/x86/include/idt.h>
+#include <kernel/io.h>
+#include <kernel/config.h>
+#include <drivers/driversys.h>
+#include <arch/x86/include/keyboard.h>
 
 #ifdef __x86_64__
-#include "arch/x86/include/asm/serial.h"
+#include <arch/x86/include/serial.h>
 #endif
 
 /* Limine requests */

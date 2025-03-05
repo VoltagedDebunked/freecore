@@ -18,10 +18,10 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include "../include/asm/idt.h"
-#include "../include/asm/gdt.h"
-#include "../../../kernel/io.h"
-#include "../../../minstd.h"
+#include <arch/x86/include/idt.h>
+#include <arch/x86/include/gdt.h>
+#include <kernel/io.h>
+#include <lib/minstd.h>
 
 /* IDT storage */
 static struct idt_entry idt[IDT_VECTOR_COUNT];

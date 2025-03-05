@@ -19,10 +19,10 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include "../include/asm/keyboard.h"
-#include "../include/asm/idt.h"
-#include "../../../kernel/io.h"
-#include "../../../minstd.h"
+#include <arch/x86/include/keyboard.h>
+#include <arch/x86/include/idt.h>
+#include <kernel/io.h>
+#include <lib/minstd.h>
 
 /* Keyboard IRQ number */
 #define KEYBOARD_IRQ 1

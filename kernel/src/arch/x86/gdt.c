@@ -18,9 +18,9 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include "../../../minstd.h"
-#include "../include/asm/gdt.h"
-#include "../../../kernel/io.h"
+#include <lib/minstd.h>
+#include <arch/x86/include/gdt.h>
+#include <kernel/io.h>
 
 /* 
  * GDT structure for x86_64

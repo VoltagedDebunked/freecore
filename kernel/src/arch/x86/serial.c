@@ -18,7 +18,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include "../include/asm/serial.h"
+#include <arch/x86/include/serial.h>
 
 /* I/O Port Functions */
 static inline void outb(uint16_t port, uint8_t val) {

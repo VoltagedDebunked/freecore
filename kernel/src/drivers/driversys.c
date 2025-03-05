@@ -18,9 +18,9 @@
  * Device Driver Management System Implementation
  */
 
-#include "driversys.h"
-#include "../io.h"
-#include "../../minstd.h"
+#include <drivers/driversys.h>
+#include <kernel/io.h>
+#include <lib/minstd.h>
 
 /* Device driver registry */
 static struct {
