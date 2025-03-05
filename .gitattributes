@@ -1,0 +1,22 @@
+# Set default behavior to automatically normalize line endings
+* text=auto
+
+# C/C++ source files
+*.c text diff=cpp
+*.h text diff=cpp
+
+# reStructuredText files
+*.rst text
+
+# Limine config
+limine.conf text
+
+# Makefiles must keep their line endings
+Makefile text eol=lf
+
+# Binary files should not be modified
+*.o binary
+*.bin binary
+*.iso binary
+*.img binary
+*.hdd binary
