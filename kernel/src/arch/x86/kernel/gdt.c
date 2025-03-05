@@ -85,14 +85,6 @@ static struct tss_struct tss = {0};
 /* GDT pointer structure for LGDT instruction */
 static struct gdt_ptr gdt_ptr;
 
-/* Segment selector values */
-#define GDT_NULL_SELECTOR        0x00
-#define GDT_KERNEL_CODE_SELECTOR 0x08
-#define GDT_KERNEL_DATA_SELECTOR 0x10
-#define GDT_USER_CODE_SELECTOR   0x18 | 0x03 /* RPL 3 */
-#define GDT_USER_DATA_SELECTOR   0x20 | 0x03 /* RPL 3 */
-#define GDT_TSS_SELECTOR         0x28
-
 /* Set a GDT entry */
 static void gdt_set_entry(int idx, uint32_t base, uint32_t limit, uint8_t access, uint8_t granularity) {
     /* Set standard entry fields */

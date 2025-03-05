@@ -25,6 +25,7 @@
 #include "arch/x86/include/asm/idt.h"
 #include "kernel/io.h"
 #include "kernel/config.h"
+#include "kernel/drivers/driversys.h"
 
 #ifdef __x86_64__
 #include "arch/x86/include/asm/serial.h"
@@ -91,6 +92,11 @@ void kmain(void) {
     /* Initialize the IDT */
     kprintf("Initializing IDT... ");
     idt_init();
+    kprintf("done\n");
+
+    /* Initialize Device Driver System, fuck this shit man. Atleast we wont have separate drivers. */
+    kprintf("Initializing Device Drivers... ");
+    drivers_early_init();
     kprintf("done\n");
 
     /* Ensure we got a framebuffer */
