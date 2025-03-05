@@ -79,7 +79,7 @@ override CPPFLAGS := \
 ifeq ($(ARCH),x86_64)
     # Internal nasm flags that should not be changed by the user.
     override NASMFLAGS += \
-        -Wall
+        -w-section-crossing
 endif
 
 # Architecture specific internal flags.

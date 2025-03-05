@@ -22,6 +22,7 @@
 #include <limine.h>
 #include "minstd.h"
 #include "arch/x86/include/asm/gdt.h"
+#include "arch/x86/include/asm/idt.h"
 #include "kernel/io.h"
 #include "kernel/config.h"
 
@@ -85,6 +86,11 @@ void kmain(void) {
     /* Initialize the GDT */
     kprintf("Initializing GDT... ");
     gdt_init();
+    kprintf("done\n");
+
+    /* Initialize the IDT */
+    kprintf("Initializing IDT... ");
+    idt_init();
     kprintf("done\n");
 
     /* Ensure we got a framebuffer */

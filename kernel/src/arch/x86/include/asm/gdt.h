@@ -42,13 +42,26 @@
 /* TSS access byte bits */
 #define GDT_ACCESS_TSS         0x09    /* 64-bit TSS */
 
-/* GDT segment indices */
+/* Segment selector values */
 #define GDT_NULL               0       /* NULL descriptor */
 #define GDT_KERNEL_CODE        1       /* Kernel code segment */
 #define GDT_KERNEL_DATA        2       /* Kernel data segment */
 #define GDT_USER_CODE          3       /* User code segment */
 #define GDT_USER_DATA          4       /* User data segment */
 #define GDT_TSS                5       /* TSS segment */
+
+/* Segment selector calculation:
+ * Selector = (Index << 3) | TI | RPL
+ * Where:
+ * - Index is the GDT entry index (0-based)
+ * - TI (Table Indicator) is 0 for GDT, 1 for LDT (always 0 here)
+ * - RPL (Requested Privilege Level) is 0 for kernel
+ */
+#define GDT_KERNEL_CODE_SELECTOR  ((GDT_KERNEL_CODE << 3) | 0)
+#define GDT_KERNEL_DATA_SELECTOR  ((GDT_KERNEL_DATA << 3) | 0)
+#define GDT_USER_CODE_SELECTOR    ((GDT_USER_CODE << 3) | 3)
+#define GDT_USER_DATA_SELECTOR    ((GDT_USER_DATA << 3) | 3)
+#define GDT_TSS_SELECTOR          ((GDT_TSS << 3) | 0)
 
 /* GDT pointer structure */
 struct gdt_ptr {
