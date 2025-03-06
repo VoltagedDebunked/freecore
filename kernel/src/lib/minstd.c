@@ -197,3 +197,165 @@ int strncmp(const char *s1, const char *s2, size_t n) {
 
     return (n > 0) ? *(const unsigned char *)s1 - *(const unsigned char *)s2 : 0;
 }
+
+size_t strlen(const char *s) {
+    /* Check for NULL pointer */
+    if (!s) {
+        kerr("strlen: NULL pointer detected\n");
+        return 0;
+    }
+
+    const char *p = s;
+    while (*p) {
+        p++;
+    }
+    return p - s;
+}
+
+char *strcpy(char *dest, const char *src) {
+    if (!dest || !src) {
+        kerr("strcpy: NULL pointer detected\n");
+        return dest;
+    }
+
+    char *original_dest = dest;
+    while ((*dest++ = *src++) != '\0');
+    return original_dest;
+}
+
+char *strncpy(char *dest, const char *src, size_t n) {
+    if (!dest || !src) {
+        kerr("strncpy: NULL pointer detected\n");
+        return dest;
+    }
+
+    char *original_dest = dest;
+    size_t i;
+
+    for (i = 0; i < n && src[i] != '\0'; i++) {
+        dest[i] = src[i];
+    }
+
+    for (; i < n; i++) {
+        dest[i] = '\0';
+    }
+
+    return original_dest;
+}
+
+char *strcat(char *dest, const char *src) {
+    if (!dest || !src) {
+        kerr("strcat: NULL pointer detected\n");
+        return dest;
+    }
+
+    char *original_dest = dest;
+
+    while (*dest) {
+        dest++;
+    }
+
+    while ((*dest++ = *src++) != '\0');
+
+    return original_dest;
+}
+
+char *strrchr(const char *s, int c) {
+    if (!s) {
+        kerr("strrchr: NULL pointer detected\n");
+        return NULL;
+    }
+
+    const char *last_occurrence = NULL;
+
+    while (*s) {
+        if (*s == (char)c) {
+            last_occurrence = s;
+        }
+        s++;
+    }
+
+    if (*s == (char)c) {
+        last_occurrence = s;
+    }
+
+    return (char *)last_occurrence;
+}
+
+char *strtok_r(char *str, const char *delim, char **saveptr) {
+    char *token_start;
+    char *token_end;
+
+    if (!saveptr) {
+        kerr("strtok_r: NULL saveptr\n");
+        return NULL;
+    }
+
+    if (str == NULL) {
+        str = *saveptr;
+    }
+
+    if (!str) {
+        return NULL;
+    }
+
+    str += strspn(str, delim);
+    if (*str == '\0') {
+        *saveptr = NULL;
+        return NULL;
+    }
+
+    token_start = str;
+    token_end = str + strcspn(str, delim);
+
+    if (*token_end == '\0') {
+        *saveptr = NULL;
+    } else {
+        *token_end = '\0';
+        *saveptr = token_end + 1;
+    }
+
+    return token_start;
+}
+
+size_t strspn(const char *s, const char *accept) {
+    const char *p;
+    const char *a;
+    size_t count = 0;
+
+    if (!s || !accept) {
+        kerr("strspn: NULL pointer detected\n");
+        return 0;
+    }
+
+    for (p = s; *p; p++) {
+        for (a = accept; *a; a++) {
+            if (*p == *a)
+                break;
+        }
+        if (*a == '\0')
+            return count;
+        count++;
+    }
+
+    return count;
+}
+
+size_t strcspn(const char *s, const char *reject) {
+    const char *p;
+    const char *a;
+
+    if (!s || !reject) {
+        kerr("strcspn: NULL pointer detected\n");
+        return 0;
+    }
+
+    for (p = s; *p; p++) {
+        for (a = reject; *a; a++) {
+            if (*p == *a)
+                return p - s;
+        }
+    }
+
+    return p - s;
+}

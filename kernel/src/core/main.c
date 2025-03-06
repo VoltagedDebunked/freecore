@@ -27,6 +27,10 @@
 #include <kernel/config.h>
 #include <drivers/driversys.h>
 #include <arch/x86/include/keyboard.h>
+#include <arch/x86/include/mouse.h>
+#include <fs/vfs.h>
+#include <fs/ext4/ext4.h>
+#include <mm/kmalloc.h>
 
 #ifdef __x86_64__
 #include <arch/x86/include/serial.h>
@@ -72,6 +76,24 @@ void kmain(void) {
     kprintf("FreeCore Kernel - Starting up...\n");
     kprintf("--------------------------------\n");
 
+    /* Initialize memory management */
+    kmalloc_init();
+
+    /* Initialize Virtual Filesystem */
+    vfs_init();
+
+    /* Initialize Device Driver System */
+    device_driver_init();
+
+    /* Register and initialize specific drivers */
+
+    /* Register filesystem drivers */
+    ext4_register_driver();
+
+    /* Initialize and register hardware drivers */
+    ps2_keyboard_register_driver();
+    ps2_mouse_register_driver();
+
     /* Ensure the bootloader actually understands our base revision (see spec) */
     if (LIMINE_BASE_REVISION_SUPPORTED == false) {
         kerr("Incompatible Limine bootloader detected!\n");
@@ -93,15 +115,6 @@ void kmain(void) {
     /* Initialize the IDT */
     kprintf("Initializing IDT... ");
     idt_init();
-    kprintf("done\n");
-
-    /* Initialize Device Driver System, fuck this shit man. Atleast we wont have separate drivers. */
-    kprintf("Initializing Device Drivers... ");
-    drivers_early_init();
-    kprintf("done\n");
-
-    kprintf("Initializing Keyboard... ");
-    ps2_keyboard_register_driver();
     kprintf("done\n");
 
     /* Ensure we got a framebuffer */
@@ -133,6 +146,7 @@ void kmain(void) {
             DEBUG_SERIAL_PORT == COM2_PORT ? 2 :
             DEBUG_SERIAL_PORT == COM3_PORT ? 3 :
             DEBUG_SERIAL_PORT == COM4_PORT ? 4 : 0);
+    kprintf("PS/2 mouse is initialized. Move mouse to see debug output.\n");
     kprintf("Press any key to receive echo: ");
 
     /* Echo received characters (simple terminal) */
