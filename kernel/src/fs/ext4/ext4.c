@@ -288,6 +288,242 @@ int ext4_read_file_block(ext4_fs_t *fs, ext4_inode_t *inode, uint64_t block_num,
 }
 
 /**
+ * Allocate a new block in the filesystem
+ * @param fs The filesystem
+ * @param group_hint Preferred block group to allocate from
+ * @param block_num Output parameter for the allocated block number
+ * @return 0 on success, negative on error
+ */
+int ext4_allocate_block(ext4_fs_t *fs, uint32_t group_hint, uint64_t *block_num) {
+    if (!fs || !block_num) {
+        return -1;
+    }
+
+    /* Start searching from the suggested group or from the beginning */
+    uint32_t start_group = (group_hint < fs->groups_count) ? group_hint : 0;
+
+    for (uint32_t i = 0; i < fs->groups_count; i++) {
+        uint32_t current_group = (start_group + i) % fs->groups_count;
+        ext4_group_desc_t *gdesc = &fs->group_desc_table[current_group];
+
+        /* Check if this group has free blocks */
+        uint16_t free_blocks_lo = gdesc->bg_free_blocks_count_lo;
+        uint16_t free_blocks_hi = gdesc->bg_free_blocks_count_hi;
+        uint32_t free_blocks = free_blocks_lo | ((uint32_t)free_blocks_hi << 16);
+
+        if (free_blocks > 0) {
+            /* Read the block bitmap */
+            uint8_t *bitmap = (uint8_t *)kmalloc(fs->block_size);
+            if (!bitmap) {
+                kerr("EXT4: Failed to allocate memory for block bitmap\n");
+                return -1;
+            }
+
+            /* Calculate block bitmap location */
+            uint64_t bitmap_block = gdesc->bg_block_bitmap_lo |
+                                    ((uint64_t)gdesc->bg_block_bitmap_hi << 32);
+
+            int result = ext4_read_block(fs, bitmap_block, bitmap);
+            if (result < 0) {
+                kerr("EXT4: Failed to read block bitmap\n");
+                kfree(bitmap);
+                return result;
+            }
+
+            /* Find a free bit in the bitmap */
+            for (uint32_t j = 0; j < fs->block_size * 8; j++) {
+                uint32_t byte_idx = j / 8;
+                uint32_t bit_idx = j % 8;
+
+                if (!(bitmap[byte_idx] & (1 << bit_idx))) {
+                    /* Mark the block as used */
+                    bitmap[byte_idx] |= (1 << bit_idx);
+
+                    /* Write back the updated bitmap */
+                    result = fs->device->ops->write(fs->device,
+                                                   bitmap_block * fs->block_size,
+                                                   fs->block_size,
+                                                   bitmap);
+                    kfree(bitmap);
+
+                    if (result < 0) {
+                        kerr("EXT4: Failed to write updated block bitmap\n");
+                        return result;
+                    }
+
+                    /* Update group descriptor free block count */
+                    free_blocks_lo--;
+                    gdesc->bg_free_blocks_count_lo = free_blocks_lo;
+
+                    /* Calculate the actual block number */
+                    *block_num = bitmap_block - fs->sb.s_first_data_block + j + 1;
+
+                    return 0;
+                }
+            }
+
+            kfree(bitmap);
+        }
+    }
+
+    kerr("EXT4: No free blocks available\n");
+    return -1;
+}
+
+/**
+ * Write data to an extent block
+ * @param fs The filesystem
+ * @param inode The inode to write to
+ * @param block_num Logical block number to write
+ * @param buffer Data to write
+ * @return 0 on success, negative on error
+ */
+int ext4_write_extent_block(ext4_fs_t *fs, ext4_inode_t *inode,
+                                   uint64_t block_num, const void *buffer) {
+    /* Validate input */
+    if (!fs || !inode || !buffer) {
+        return -1;
+    }
+
+    /* Check for extent feature */
+    if (!(fs->sb.s_feature_incompat & EXT4_FEATURE_INCOMPAT_EXTENTS)) {
+        kerr("EXT4: Filesystem doesn't support extents\n");
+        return -1;
+    }
+
+    /* Allocate a new physical block */
+    uint64_t phys_block;
+    int result = ext4_allocate_block(fs, 0, &phys_block);
+    if (result < 0) {
+        kerr("EXT4: Failed to allocate block for writing\n");
+        return result;
+    }
+
+    /* Write the data to the newly allocated block */
+    result = fs->device->ops->write(fs->device,
+                                    phys_block * fs->block_size,
+                                    fs->block_size,
+                                    buffer);
+    if (result < 0) {
+        kerr("EXT4: Failed to write data block\n");
+        return result;
+    }
+
+    /* Update or create extent tree */
+    ext4_extent_node_t *node = (ext4_extent_node_t *)&inode->i_block;
+
+    /* If this is the first extent, create a new header */
+    if (node->header.eh_magic != EXT4_EXTENT_HEADER_MAGIC) {
+        node->header.eh_magic = EXT4_EXTENT_HEADER_MAGIC;
+        node->header.eh_entries = 1;
+        node->header.eh_max = 4;
+        node->header.eh_depth = 0;
+        node->header.eh_generation = 0;
+
+        node->extent[0].ee_block = block_num;
+        node->extent[0].ee_len = 1;
+        node->extent[0].ee_start_lo = phys_block & 0xFFFFFFFF;
+        node->extent[0].ee_start_hi = (phys_block >> 32) & 0xFFFF;
+    } else {
+        /* TODO: Implement more complex extent tree management for multiple blocks */
+        kerr("EXT4: Multi-block extent writing not fully implemented\n");
+        return -1;
+    }
+
+    /* Update inode size if necessary */
+    uint64_t file_size = inode->i_size_lo | ((uint64_t)inode->i_size_high << 32);
+    uint64_t block_offset = block_num * fs->block_size;
+    if (block_offset + fs->block_size > file_size) {
+        inode->i_size_lo = (block_offset + fs->block_size) & 0xFFFFFFFF;
+        inode->i_size_high = (block_offset + fs->block_size) >> 32;
+    }
+
+    return 0;
+}
+
+/**
+ * Write file data to an inode
+ * @param fs The filesystem
+ * @param inode The inode to write to
+ * @param offset Offset within the file to write
+ * @param size Number of bytes to write
+ * @param buffer Data to write
+ * @return Number of bytes written, or negative on error
+ */
+int ext4_write_file_data(ext4_fs_t *fs, ext4_inode_t *inode,
+                         uint64_t offset, uint64_t size, const void *buffer) {
+    if (!fs || !inode || !buffer) {
+        return -1;
+    }
+
+    /* Check if filesystem is read-only */
+    if (fs->sb.s_feature_ro_compat & EXT4_FEATURE_RO_COMPAT_READONLY) {
+        kerr("EXT4: Filesystem is mounted read-only\n");
+        return -1;
+    }
+
+    /* Allocate a buffer for writing blocks */
+    uint8_t *block_buffer = (uint8_t *)kmalloc(fs->block_size);
+    if (!block_buffer) {
+        kerr("EXT4: Failed to allocate memory for write buffer\n");
+        return -1;
+    }
+
+    /* Calculate starting block and offset within block */
+    uint64_t start_block = offset / fs->block_size;
+    uint32_t start_offset = offset % fs->block_size;
+
+    /* Calculate total number of blocks to write */
+    uint64_t end_pos = offset + size;
+    uint64_t end_block = (end_pos - 1) / fs->block_size;
+    uint64_t num_blocks = end_block - start_block + 1;
+
+    /* Write blocks one by one */
+    uint64_t bytes_written = 0;
+    const uint8_t *src = (const uint8_t *)buffer;
+
+    for (uint64_t i = 0; i < num_blocks; i++) {
+        uint64_t current_block = start_block + i;
+
+        /* Read existing block data if not writing a full block */
+        int read_result = ext4_read_file_block(fs, inode, current_block, block_buffer);
+        if (read_result < 0) {
+            kerr("EXT4: Failed to read existing block data\n");
+            kfree(block_buffer);
+            return read_result;
+        }
+
+        /* Calculate how much data to write to this block */
+        uint32_t block_offset = (i == 0) ? start_offset : 0;
+        uint32_t bytes_to_copy = fs->block_size - block_offset;
+
+        if (bytes_written + bytes_to_copy > size) {
+            bytes_to_copy = size - bytes_written;
+        }
+
+        /* Copy data into block buffer */
+        memcpy(block_buffer + block_offset, src + bytes_written, bytes_to_copy);
+
+        /* Write the block */
+        int write_result = ext4_write_extent_block(fs, inode, current_block, block_buffer);
+        if (write_result < 0) {
+            kerr("EXT4: Failed to write block\n");
+            kfree(block_buffer);
+            return write_result;
+        }
+
+        bytes_written += bytes_to_copy;
+
+        if (bytes_written >= size) {
+            break;
+        }
+    }
+
+    kfree(block_buffer);
+    return bytes_written;
+}
+
+/**
  * Read file data from an inode
  * @param fs The filesystem
  * @param inode The inode to read from
@@ -668,8 +904,14 @@ static size_t ext4_read(struct vfs_node *node, uint64_t offset, size_t size, voi
  * VFS write function
  */
 static size_t ext4_write(struct vfs_node *node, uint64_t offset, size_t size, const void *buffer) {
-    /* Read-only implementation for now */
-    return 0;
+    if (!node || !buffer || !node->private_data) {
+        return 0;
+    }
+
+    ext4_inode_info_t *info = (ext4_inode_info_t *)node->private_data;
+    ext4_fs_t *fs = info->fs;
+
+    return ext4_write_file_data(fs, &info->raw_inode, offset, size, buffer);
 }
 
 /**

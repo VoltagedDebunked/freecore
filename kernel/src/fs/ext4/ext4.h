@@ -40,15 +40,15 @@
 #define EXT4_JOURNAL_INO     8
 #define EXT4_FIRST_INO       11
 
-/* EXT4 superblock feature flags */
+/* Filesystem compatibility feature flags */
 #define EXT4_FEATURE_COMPAT_DIR_PREALLOC     0x0001
 #define EXT4_FEATURE_COMPAT_IMAGIC_INODES    0x0002
 #define EXT4_FEATURE_COMPAT_HAS_JOURNAL      0x0004
 #define EXT4_FEATURE_COMPAT_EXT_ATTR         0x0008
 #define EXT4_FEATURE_COMPAT_RESIZE_INODE     0x0010
 #define EXT4_FEATURE_COMPAT_DIR_INDEX        0x0020
-#define EXT4_FEATURE_COMPAT_SPARSE_SUPER2    0x0200
 
+/* Incompatible feature flags */
 #define EXT4_FEATURE_INCOMPAT_COMPRESSION    0x0001
 #define EXT4_FEATURE_INCOMPAT_FILETYPE       0x0002
 #define EXT4_FEATURE_INCOMPAT_RECOVER        0x0004
@@ -65,6 +65,7 @@
 #define EXT4_FEATURE_INCOMPAT_INLINE_DATA    0x8000
 #define EXT4_FEATURE_INCOMPAT_ENCRYPT        0x10000
 
+/* Read-only compatibility feature flags */
 #define EXT4_FEATURE_RO_COMPAT_SPARSE_SUPER  0x0001
 #define EXT4_FEATURE_RO_COMPAT_LARGE_FILE    0x0002
 #define EXT4_FEATURE_RO_COMPAT_BTREE_DIR     0x0004
@@ -80,6 +81,9 @@
 #define EXT4_FEATURE_RO_COMPAT_READONLY      0x1000
 #define EXT4_FEATURE_RO_COMPAT_PROJECT       0x2000
 
+/* Custom write support feature flag */
+#define EXT4_FEATURE_WRITE_SUPPORT           0x00010000
+
 /* File types in directory entries */
 #define EXT4_FT_UNKNOWN      0
 #define EXT4_FT_REG_FILE     1
@@ -94,6 +98,24 @@
 /* Extent-related definitions */
 #define EXT4_EXT_MAGIC       0xF30A
 #define EXT4_EXTENT_HEADER_MAGIC 0xF30A
+
+/* Write error codes */
+typedef enum {
+    EXT4_WRITE_ERROR_NONE,
+    EXT4_WRITE_ERROR_NO_SPACE,
+    EXT4_WRITE_ERROR_READ_FAIL,
+    EXT4_WRITE_ERROR_WRITE_FAIL,
+    EXT4_WRITE_ERROR_EXTENT_FULL,
+    EXT4_WRITE_ERROR_READONLY
+} ext4_write_error_t;
+
+/* Write flags */
+typedef enum {
+    EXT4_WRITE_DEFAULT        = 0x00,
+    EXT4_WRITE_SYNC           = 0x01,  /* Synchronous write */
+    EXT4_WRITE_ATOMIC         = 0x02,  /* Atomic write operation */
+    EXT4_WRITE_NO_OVERWRITE   = 0x04   /* Prevent overwriting existing data */
+} ext4_write_flags_t;
 
 /* EXT4 Superblock structure */
 typedef struct ext4_superblock {
@@ -122,6 +144,7 @@ typedef struct ext4_superblock {
     uint32_t s_rev_level;            /* Revision level */
     uint16_t s_def_resuid;           /* Default uid for reserved blocks */
     uint16_t s_def_resgid;           /* Default gid for reserved blocks */
+
     /* EXT4 specific fields */
     uint32_t s_first_ino;            /* First non-reserved inode */
     uint16_t s_inode_size;           /* Size of inode structure */
@@ -132,66 +155,11 @@ typedef struct ext4_superblock {
     uint8_t  s_uuid[16];             /* 128-bit uuid for volume */
     char     s_volume_name[16];      /* Volume name */
     char     s_last_mounted[64];     /* Directory where last mounted */
-    uint32_t s_algorithm_usage_bitmap; /* For compression */
-    /* Performance hints */
-    uint8_t  s_prealloc_blocks;      /* # of blocks to try to preallocate */
-    uint8_t  s_prealloc_dir_blocks;  /* # to preallocate for dirs */
-    uint16_t s_reserved_gdt_blocks;  /* Per group desc for online growth */
-    /* Journaling support, not used in read-only mode */
-    uint8_t  s_journal_uuid[16];     /* UUID of journal superblock */
-    uint32_t s_journal_inum;         /* Inode number of journal file */
-    uint32_t s_journal_dev;          /* Device number of journal file */
-    uint32_t s_last_orphan;          /* Start of list of inodes to delete */
-    uint32_t s_hash_seed[4];         /* HTREE hash seed */
-    uint8_t  s_def_hash_version;     /* Default hash version to use */
-    uint8_t  s_jnl_backup_type;
+
+    uint32_t s_blocks_count_hi;      /* Blocks count high 32-bits */
     uint16_t s_desc_size;            /* Size of group descriptor */
-    uint32_t s_default_mount_opts;
-    uint32_t s_first_meta_bg;        /* First metablock block group */
-    uint32_t s_mkfs_time;            /* When the filesystem was created */
-    uint32_t s_jnl_blocks[17];       /* Backup of the journal inode */
-    /* 64bit support */
-    uint32_t s_blocks_count_hi;      /* Blocks count */
-    uint32_t s_r_blocks_count_hi;    /* Reserved blocks count */
-    uint32_t s_free_blocks_count_hi; /* Free blocks count */
-    uint16_t s_min_extra_isize;      /* All inodes have at least # bytes */
-    uint16_t s_want_extra_isize;     /* New inodes should reserve # bytes */
-    uint32_t s_flags;                /* Miscellaneous flags */
-    uint16_t s_raid_stride;          /* RAID stride */
-    uint16_t s_mmp_update_interval;  /* # seconds to wait in MMP checking */
-    uint64_t s_mmp_block;            /* Block for multi-mount protection */
-    uint32_t s_raid_stripe_width;    /* Blocks on all data disks (N*stride) */
-    uint8_t  s_log_groups_per_flex;  /* FLEX_BG group size */
-    uint8_t  s_checksum_type;        /* Metadata checksum algorithm used */
-    uint8_t  s_encryption_level;     /* Versioning level for encryption */
-    uint8_t  s_reserved_pad;         /* Padding to next 32bits */
-    uint64_t s_kbytes_written;       /* Number of lifetime kilobytes written */
-    uint32_t s_snapshot_inum;        /* Inode number of active snapshot */
-    uint32_t s_snapshot_id;          /* Sequential ID of active snapshot */
-    uint64_t s_snapshot_r_blocks_count; /* Reserved blocks for active snapshot's future use */
-    uint32_t s_snapshot_list;        /* Inode number of the head of the on-disk snapshot list */
-    uint32_t s_error_count;          /* Number of fs errors */
-    uint32_t s_first_error_time;     /* First time an error happened */
-    uint32_t s_first_error_ino;      /* Inode involved in first error */
-    uint64_t s_first_error_block;    /* Block involved of first error */
-    uint8_t  s_first_error_func[32]; /* Function where the error happened */
-    uint32_t s_first_error_line;     /* Line number where error happened */
-    uint32_t s_last_error_time;      /* Most recent time of an error */
-    uint32_t s_last_error_ino;       /* Inode involved in last error */
-    uint32_t s_last_error_line;      /* Line number where error happened */
-    uint64_t s_last_error_block;     /* Block involved of last error */
-    uint8_t  s_last_error_func[32];  /* Function where the error happened */
-    uint8_t  s_mount_opts[64];
-    uint32_t s_usr_quota_inum;       /* Inode for tracking user quota */
-    uint32_t s_grp_quota_inum;       /* Inode for tracking group quota */
-    uint32_t s_overhead_clusters;    /* Overhead blocks/clusters in fs */
-    uint32_t s_backup_bgs[2];        /* Groups with sparse_super2 SBs */
-    uint8_t  s_encrypt_algos[4];     /* Encryption algorithms in use */
-    uint8_t  s_encrypt_pw_salt[16];  /* Salt used for string2key algorithm */
-    uint32_t s_lpf_ino;              /* Location of the lost+found inode */
-    uint32_t s_prj_quota_inum;       /* Inode for tracking project quota */
-    uint32_t s_checksum_seed;        /* Crc32c(uuid) if csum_seed set */
-    uint32_t s_reserved[98];         /* Padding to the end of the block */
+    uint16_t s_reserved_gdt_csum;    /* Checksum of the reserved group descriptors */
+    uint32_t s_reserved[96];         /* Padding to the end of the block */
     uint32_t s_checksum;             /* Checksum */
 } __attribute__((packed)) ext4_superblock_t;
 
@@ -209,6 +177,7 @@ typedef struct ext4_group_desc {
     uint16_t bg_inode_bitmap_csum_lo; /* Crc32c(s_uuid+grp_num+ibitmap) LE */
     uint16_t bg_itable_unused_lo;     /* Unused inodes count */
     uint16_t bg_checksum;             /* Crc16(sb_uuid+group+desc) */
+
     /* 64-bit fields */
     uint32_t bg_block_bitmap_hi;      /* Blocks bitmap block MSB */
     uint32_t bg_inode_bitmap_hi;      /* Inodes bitmap block MSB */
@@ -274,10 +243,9 @@ typedef struct ext4_inode {
             uint32_t m_i_reserved2[2]; /* Reserved */
         } masix2;
     } osd2;                 /* OS dependent 2 */
-    /* Additional fields may follow depending on i_extra_isize */
 } __attribute__((packed)) ext4_inode_t;
 
-/* EXT4 extent header */
+/* Extent header structure */
 typedef struct ext4_extent_header {
     uint16_t eh_magic;      /* Magic number, 0xF30A */
     uint16_t eh_entries;    /* Number of valid entries */
@@ -286,7 +254,7 @@ typedef struct ext4_extent_header {
     uint32_t eh_generation; /* Generation of the tree */
 } __attribute__((packed)) ext4_extent_header_t;
 
-/* EXT4 extent index (internal nodes of the tree) */
+/* Extent index (internal nodes of the tree) */
 typedef struct ext4_extent_idx {
     uint32_t ei_block;      /* Index covers logical blocks from 'block' */
     uint32_t ei_leaf_lo;    /* Pointer to the physical block of the next level */
@@ -294,7 +262,7 @@ typedef struct ext4_extent_idx {
     uint16_t ei_unused;     /* Unused */
 } __attribute__((packed)) ext4_extent_idx_t;
 
-/* EXT4 extent (leaf nodes) */
+/* Extent (leaf nodes) */
 typedef struct ext4_extent {
     uint32_t ee_block;      /* First logical block extent covers */
     uint16_t ee_len;        /* Number of blocks covered by extent */
@@ -320,7 +288,7 @@ typedef struct ext4_dir_entry {
     char     name[];        /* File name, up to EXT4_NAME_LEN (255) */
 } __attribute__((packed)) ext4_dir_entry_t;
 
-/* Directory entry structure for directories using hash trees */
+/* Directory entry structure for hash tree directories */
 typedef struct ext4_dir_entry_2 {
     uint32_t inode;         /* Inode number */
     uint16_t rec_len;       /* Directory entry length */
@@ -329,7 +297,14 @@ typedef struct ext4_dir_entry_2 {
     char     name[];        /* File name, up to EXT4_NAME_LEN (255) */
 } __attribute__((packed)) ext4_dir_entry_2_t;
 
-/* EXT4 filesystem in-memory structures */
+/* Write result structure */
+typedef struct {
+    ext4_write_error_t error_code;
+    uint64_t error_block;
+    uint64_t bytes_written;
+} ext4_write_result_t;
+
+/* EXT4 filesystem in-memory structure */
 typedef struct ext4_fs {
     block_device_t *device;       /* Block device containing the filesystem */
     ext4_superblock_t sb;         /* Superblock data */
@@ -340,26 +315,64 @@ typedef struct ext4_fs {
     uint32_t blocks_per_group;    /* Number of blocks per group */
     ext4_group_desc_t *group_desc_table; /* Group descriptor table */
     struct vfs_node *root_node;   /* VFS node for the root directory */
+
+    /* Write support metadata */
+    uint64_t free_blocks;         /* Number of free blocks */
+    uint64_t free_inodes;         /* Number of free inodes */
+
+    /* Optional write journal */
+    void *write_journal;          /* Placeholder for write journaling */
 } ext4_fs_t;
 
-/* EXT4 in-memory inode data */
+/* In-memory inode information */
 typedef struct ext4_inode_info {
     ext4_inode_t raw_inode;      /* Raw inode data from disk */
     uint32_t inode_num;          /* Inode number */
     ext4_fs_t *fs;               /* Filesystem this inode belongs to */
+
+    /* Additional metadata for write support */
+    uint64_t allocated_blocks;   /* Number of blocks allocated */
+    uint64_t last_write_time;    /* Timestamp of last write */
 } ext4_inode_info_t;
 
-/* Function prototypes */
+/* Function prototypes for filesystem operations */
 int ext4_init(void);
 int ext4_mount(block_device_t *device, struct vfs_node **root_node);
 void ext4_unmount(struct vfs_node *root_node);
 
-/* Internal functions */
+/* Read operations */
 int ext4_read_inode(ext4_fs_t *fs, uint32_t inode_num, ext4_inode_t *inode);
 int ext4_read_block(ext4_fs_t *fs, uint64_t block_num, void *buffer);
-int ext4_read_extent_block(ext4_fs_t *fs, ext4_inode_t *inode, uint64_t block_num, uint64_t *phys_block);
-int ext4_read_file_block(ext4_fs_t *fs, ext4_inode_t *inode, uint64_t block_num, void *buffer);
-int ext4_read_file_data(ext4_fs_t *fs, ext4_inode_t *inode, uint64_t offset, uint64_t size, void *buffer);
+int ext4_read_extent_block(ext4_fs_t *fs, ext4_inode_t *inode,
+                           uint64_t block_num, uint64_t *phys_block);
+int ext4_read_file_block(ext4_fs_t *fs, ext4_inode_t *inode,
+                         uint64_t block_num, void *buffer);
+int ext4_read_file_data(ext4_fs_t *fs, ext4_inode_t *inode,
+                        uint64_t offset, uint64_t size, void *buffer);
+
+/* Write operations */
+int ext4_allocate_block(ext4_fs_t *fs, uint32_t group_hint, uint64_t *block_num);
+int ext4_write_extent_block(ext4_fs_t *fs, ext4_inode_t *inode,
+                            uint64_t block_num, const void *buffer);
+int ext4_write_file_data(ext4_fs_t *fs, ext4_inode_t *inode,
+                         uint64_t offset, uint64_t size, const void *buffer);
+int ext4_write_file_data_ex(ext4_fs_t *fs, ext4_inode_t *inode,
+                            uint64_t offset, uint64_t size,
+                            const void *buffer, ext4_write_flags_t flags);
+
+/* Filesystem management functions */
+int ext4_verify_filesystem_consistency(ext4_fs_t *fs);
+int ext4_repair_filesystem(ext4_fs_t *fs, int repair_level);
+int ext4_update_group_descriptor(ext4_fs_t *fs, uint32_t group_num,
+                                 ext4_group_desc_t *updated_desc);
+
+/* Utility macros */
+#define EXT4_HAS_WRITE_SUPPORT(sb) \
+    ((sb)->s_feature_incompat & EXT4_FEATURE_WRITE_SUPPORT)
+
+/* Logging and debugging */
+void ext4_log_write_operation(ext4_fs_t *fs, uint64_t inode_num,
+                              uint64_t offset, uint64_t size);
 
 /* Register the filesystem driver */
 void ext4_register_driver(void);
